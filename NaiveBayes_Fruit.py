@@ -11,7 +11,7 @@ from sklearn.metrics import classification_report
 from sklearn.metrics import accuracy_score
 
 # Load the dataset from a predefined path
-df_fruit = pd.read_excel(' C:\c:/Users/ASUS/OneDrive/문서/UTS Machinr Learning/NNaiveBayes_Fruit.sav')
+df_fruit = pd.read_excel('c:/Users/ASUS/OneDrive/문서/UTS Machinr Learning/NNaiveBayes_Fruit.sav')
 
 # Check the first few rows of the dataset
 print("Data Preview:")
