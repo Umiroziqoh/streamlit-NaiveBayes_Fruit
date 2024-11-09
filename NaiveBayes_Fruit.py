@@ -1,91 +1,94 @@
-import streamlit as st
 import numpy as np
 import pandas as pd
+import pickle
+
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
-from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
-import pickle
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
+from sklearn.metrics import accuracy_score
 
-# Title of the app
-st.title('Fruit Classification Web Application')
+# Load the dataset from a predefined path
+df_fruit = pd.read_excel('fruit_data.xlsx')
 
-# Upload the fruit data file
-uploaded_file = st.file_uploader("Upload Fruit Data Excel File", type=["xlsx"])
+# Check the first few rows of the dataset
+print("Data Preview:")
+print(df_fruit.head())
 
-if uploaded_file is not None:
-    df_fruit = pd.read_excel(uploaded_file)
-    st.write("Data Preview:")
-    st.write(df_fruit.head())
-    
-    # Check if data is loaded successfully
-    if df_fruit.empty:
-        st.error("The uploaded file is empty.")
-    else:
-        # Preprocessing the data
-        en = LabelEncoder()
-        df_fruit['name'] = en.fit_transform(df_fruit['name'])
+# Check the structure of the dataset
+print("Dataset Info:")
+print(df_fruit.info())
 
-        # Split the features and labels
-        x = df_fruit.iloc[:, :-1].values
-        y = df_fruit.iloc[:, -1].values
+# Check if the dataset is empty
+if df_fruit.empty:
+    print("Dataset is empty!")
+else:
+    # Encode the fruit names into numeric labels
+    en = LabelEncoder()
+    df_fruit['name'] = en.fit_transform(df_fruit['name'])
 
-        # Split the dataset into training and testing
-        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=123)
-        
-        # Standardize the data
-        sc = StandardScaler()
-        x_train = sc.fit_transform(x_train)
-        x_test = sc.transform(x_test)
+    # Prepare the feature matrix (X) and target vector (y)
+    x = df_fruit.iloc[:, :-1].values
+    y = df_fruit.iloc[:, -1].values
 
-        # Train the model
-        classifier = GaussianNB()
-        classifier.fit(x_train, y_train)
-        
-        # Predict the results
-        y_pred = classifier.predict(x_test)
-        
-        # Show metrics
-        st.subheader('Model Accuracy')
-        accuracy = accuracy_score(y_test, y_pred) * 100
-        st.write(f"Accuracy: {accuracy:.2f}%")
-        
-        # Show confusion matrix
-        st.subheader('Confusion Matrix')
-        cm = confusion_matrix(y_test, y_pred)
-        st.write(cm)
-        
-        # Show classification report
-        st.subheader('Classification Report')
-        report = classification_report(y_test, y_pred)
-        st.text(report)
+    # Split the dataset into training and testing sets
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=123)
 
-        # Allow user to input new data for prediction
-        st.subheader('Fruit Prediction')
-        input_features = []
-        
-        # Dynamically create input fields based on the features
-        for col in df_fruit.columns[:-1]:  # Exclude the 'name' column (target)
-            input_value = st.number_input(f"Enter value for {col}", value=0)
-            input_features.append(input_value)
-        
-        if st.button('Predict Fruit Type'):
-            input_features = np.array(input_features).reshape(1, -1)
-            input_features = sc.transform(input_features)  # Standardize input data
-            prediction = classifier.predict(input_features)
-            predicted_class = en.inverse_transform(prediction)
-            st.write(f"The predicted fruit is: {predicted_class[0]}")
-        
-        # Save the model
-        if st.button('Save Model'):
-            filename = 'NaiveBayes_Fruit.sav'
-            pickle.dump(classifier, open(filename, 'wb'))
-            st.write(f"Model saved as {filename}")
+    print(f"x_train: {len(x_train)}")
+    print(f"x_test: {len(x_test)}")
+    print(f"y_train: {len(y_train)}")
+    print(f"y_test: {len(y_test)}")
 
-        # Provide an option to download the predicted data
-        if st.button('Download Predictions'):
-            ydata = pd.DataFrame({'y_test': y_test, 'y_pred': y_pred})
-            output_file = 'data_fruit_actualpred.xlsx'
-            ydata.to_excel(output_file, index=False)
-            st.write(f"Download the prediction data: [Click here to download]({output_file})")
+    # Standardize the features
+    sc = StandardScaler()
+    x_train = sc.fit_transform(x_train)
+    x_test = sc.transform(x_test)
+
+    # Initialize and train the Naive Bayes classifier
+    classifier = GaussianNB()
+    classifier.fit(x_train, y_train)
+
+    # Make predictions
+    y_pred = classifier.predict(x_test)
+
+    # Predict probability of each class
+    class_probabilities = classifier.predict_proba(x_test)
+
+    # Confusion Matrix
+    cm = confusion_matrix(y_test, y_pred)
+    print("Confusion Matrix:")
+    print(cm)
+
+    # Classification Report
+    print("Classification Report:")
+    print(classification_report(y_test, y_pred))
+
+    # Accuracy Score
+    accuracy = accuracy_score(y_test, y_pred)
+    print(f"Accuracy: {accuracy * 100:.2f}%")
+
+    # Create a DataFrame to store the actual and predicted values
+    ydata = pd.DataFrame()
+    ydata['y_test'] = pd.DataFrame(y_test)
+    ydata['y_pred'] = pd.DataFrame(y_pred)
+    print("Actual vs Predicted Values:")
+    print(ydata)
+
+    # Save the results to an Excel file
+    ydata.to_excel('data_fruit_actualpred.xlsx', index=False)
+    print("Prediction results saved to 'data_fruit_actualpred.xlsx'.")
+
+    # Save the trained model using pickle
+    filename = 'NaiveBayes_Fruit.sav'
+    pickle.dump(classifier, open(filename, 'wb'))
+    print(f"Model saved as {filename}")
+
+    # Example: Load and test the saved model
+    loaded_model = pickle.load(open(filename, 'rb'))
+    test_sample = np.array([x_test[0]])  # Take a sample from the test set
+    test_sample = sc.transform(test_sample)  # Standardize the sample
+    prediction = loaded_model.predict(test_sample)
+    predicted_fruit = en.inverse_transform(prediction)
+    print(f"Prediction for sample: {predicted_fruit[0]}")
